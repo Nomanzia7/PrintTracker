@@ -1,0 +1,15 @@
+{
+  "name": "print-tracker-pro",
+  "version": "1.0.0",
+  "description": "Professional Print Request Tracker",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.22.1",
+    "mongodb": "^7.0.0",
+    "mongoose": "^7.8.8"
+  }
+}

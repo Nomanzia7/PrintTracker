@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Print Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #1e3a8a; --success: #059669; --error: #dc2626; --slate: #64748b; }
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; margin: 0; padding: 20px; color: #1e293b; }
+        .wrapper { max-width: 500px; margin: 40px auto; }
+        .card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h2 { font-size: 18px; margin-top: 0; color: var(--primary); display: flex; justify-content: space-between; align-items: center; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; font-weight: 600; color: var(--slate); margin-bottom: 5px; text-transform: uppercase; }
+        input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .btn-main { background: var(--primary); color: white; }
+        .btn-add { background: white; border: 1px solid var(--primary); color: var(--primary); margin-bottom: 20px; }
+        .btn-update { background: var(--success); color: white; }
+        
+        .result-box { display: none; border-top: 2px solid #f1f5f9; margin-top: 20px; padding-top: 20px; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+        .status-tag { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .eligible { background: #dcfce7; color: var(--success); }
+        .not-eligible { background: #fee2e2; color: var(--error); }
+        
+        #addForm { display: none; animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <button class="btn-add" onclick="toggleAddForm()">+ ADD NEW RECORD</button>
+
+    <div id="addForm" class="card">
+        <h2>Register New Entry</h2>
+        <div class="input-group">
+            <label>ID Number (CRN)</label>
+            <input type="text" id="newCrn" placeholder="e.g. 556677">
+        </div>
+        <div class="input-group">
+            <label>Full Name</label>
+            <input type="text" id="newName" placeholder="Enter name">
+        </div>
+        <div class="input-group">
+            <label>Last Print Date</label>
+            <input type="date" id="newDate">
+        </div>
+        <button class="btn-main" onclick="saveNewEntry()">SAVE TO DATABASE</button>
+    </div>
+
+    <div class="card">
+        <h2>Search & Verify</h2>
+        <div class="input-group">
+            <label>Enter ID Number</label>
+            <input type="text" id="searchCrn" placeholder="Enter ID to check eligibility">
+        </div>
+        <button class="btn-main" onclick="searchRecord()">VERIFY STATUS</button>
+
+        <div id="resultArea" class="result-box">
+            <div class="data-row"><span>Status:</span> <span id="resStatus" class="status-tag"></span></div>
+            <div class="data-row"><span>Name:</span> <span id="resName" style="font-weight:600"></span></div>
+            <div class="data-row"><span>ID:</span> <span id="resId"></span></div>
+            <div class="data-row"><span>Last Print:</span> <span id="resDate"></span></div>
+            <div id="updateAction"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleAddForm() {
+        const form = document.getElementById('addForm');
+        form.style.display = form.style.display === 'none' || form.style.display === '' ? 'block' : 'none';
+    }
+
+async function saveNewEntry() {
+    const crn = document.getElementById('newCrn').value;
+    const name = document.getElementById('newName').value;
+    const lastPrintDate = document.getElementById('newDate').value;
+
+    if(!crn || !name || !lastPrintDate) return alert("Please fill all fields");
+
+    try {
+        const res = await fetch('/add-new', { // صرف '/add-new' لکھیں، مکمل localhost لنک نہ لکھیں
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ crn, name, lastPrintDate })
+        });
+        
+        const data = await res.json();
+        if(data.success) {
+            alert("✅ Record Saved Successfully!");
+            toggleAddForm(); 
+            document.getElementById('searchCrn').value = crn;
+            searchRecord(); 
+        }
+    } catch (error) {
+        alert("❌ Network Error: Is server running?");
+    }
+}
+
+    async function searchRecord() {
+        const crn = document.getElementById('searchCrn').value;
+        if(!crn) return;
+
+        const res = await fetch(`/check/${crn}`);
+        const data = await res.json();
+        
+        const resultArea = document.getElementById('resultArea');
+        resultArea.style.display = 'block';
+
+        if(data.found) {
+            document.getElementById('resName').innerText = data.user.name;
+            document.getElementById('resId').innerText = data.user.crn;
+            document.getElementById('resDate').innerText = new Date(data.user.lastPrintDate).toDateString();
+            
+            const statusTag = document.getElementById('resStatus');
+            const actionArea = document.getElementById('updateAction');
+
+            if(data.eligible) {
+                statusTag.innerText = "ELIGIBLE";
+                statusTag.className = "status-tag eligible";
+                actionArea.innerHTML = `<button class="btn-update" onclick="updateToToday('${crn}')">UPDATE TO CURRENT DATE</button>`;
+            } else {
+                statusTag.innerText = "NOT ELIGIBLE";
+                statusTag.className = "status-tag not-eligible";
+                actionArea.innerHTML = `<p style="font-size:12px; color:gray; text-align:center; margin-top:10px;">User must wait 7 days between prints.</p>`;
+            }
+        } else {
+            alert("No record found with this ID.");
+            resultArea.style.display = 'none';
+        }
+    }
+
+    async function updateToToday(crn) {
+        await fetch('/update-date', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ crn })
+        });
+        alert("Date updated to Today!");
+        searchRecord();
+    }
+</script>
+
+</body>
+</html>
