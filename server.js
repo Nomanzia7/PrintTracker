@@ -5,60 +5,75 @@ const path = require('path');
 
 const app = express();
 
-// --- ضروری سیٹنگز ---
+// --- Middleware ---
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname)); // اسی فولڈر سے فائلیں چلانے کے لیے
+app.use(express.static(__dirname)); 
 
-// --- ڈیٹا بیس کنکشن (اپنا پاس ورڈ یہاں ڈالیں) ---
+// --- MongoDB Connection ---
 const mongoURI = "mongodb+srv://admin:Print123@cluster0.djwrc3o.mongodb.net/PrintTracker?retryWrites=true&w=majority";
 
 mongoose.connect(mongoURI).then(() => {
     console.log("✅ MongoDB Connected Successfully!");
 }).catch(err => console.log("❌ DB Error:", err));
 
+// --- Data Schema (Only CRN and Date) ---
 const User = mongoose.model('User', { 
     crn: String, 
-    name: String, 
     lastPrintDate: Date 
 });
 
-// --- ایپلیکیشن کے راستے (Routes) ---
+// --- Routes ---
 
-// ہوم پیج دکھانے کے لیے
+// 1. Home Page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// نیا ریکارڈ سیو کرنے کے لیے (یہ 404 ایرر فکس کرے گا)
+// 2. Add New Entry (No Name Field)
 app.post('/add-new', async (req, res) => {
     try {
-        const { crn, name, lastPrintDate } = req.body;
-        const newUser = new User({ crn, name, lastPrintDate: new Date(lastPrintDate) });
+        const { crn, lastPrintDate } = req.body;
+        
+        let existingUser = await User.findOne({ crn: crn });
+        if (existingUser) {
+            return res.status(400).json({ success: false, message: "ID already exists!" });
+        }
+
+        const newUser = new User({ 
+            crn, 
+            lastPrintDate: new Date(lastPrintDate) 
+        });
+        
         await newUser.save();
-        console.log(`✅ Saved: ${name}`);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// سرچ کرنے کے لیے
+// 3. Search and Check Eligibility
 app.get('/check/:crn', async (req, res) => {
     try {
         const user = await User.findOne({ crn: req.params.crn });
         if (!user) return res.json({ found: false });
         
         const lastDate = new Date(user.lastPrintDate);
-        const diffDays = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
+        const today = new Date();
+        const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
         
-        res.json({ found: true, user, eligible: diffDays >= 7 });
+        res.json({ 
+            found: true, 
+            user, 
+            eligible: diffDays >= 7, 
+            daysPassed: diffDays 
+        });
     } catch (error) {
         res.status(500).json({ found: false });
     }
 });
 
-// اپ ڈیٹ بٹن کے لیے
+// 4. Update to Current Date
 app.post('/update-date', async (req, res) => {
     try {
         await User.findOneAndUpdate({ crn: req.body.crn }, { lastPrintDate: new Date() });
@@ -68,4 +83,5 @@ app.post('/update-date', async (req, res) => {
     }
 });
 
-app.listen(3000, () => console.log("🚀 Server running at: http://localhost:3000"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server: http://localhost:${PORT}`));
