@@ -10,14 +10,21 @@ app.use(express.static(__dirname));
 
 // MongoDB Connection
 const mongoURI = "mongodb+srv://admin:Print123@cluster0.djwrc3o.mongodb.net/PrintTracker?retryWrites=true&w=majority";
-mongoose.connect(mongoURI).then(() => console.log("✅ MongoDB Connected")).catch(err => console.log(err));
+mongoose.connect(mongoURI).then(() => console.log("✅ MongoDB Connected Successfully!")).catch(err => console.log(err));
 
 // Data Models
-const User = mongoose.model('User', { crn: String, lastPrintDate: Date });
-const Activity = mongoose.model('Activity', { crn: String, action: String, timestamp: { type: Date, default: Date.now } });
-const History = mongoose.model('History', { crn: String, printDate: Date });
+const User = mongoose.model('User', { 
+    crn: String, 
+    lastPrintDate: Date 
+});
 
-// 1. Check Eligibility
+const Activity = mongoose.model('Activity', { 
+    crn: String, 
+    action: String, 
+    timestamp: { type: Date, default: Date.now } 
+});
+
+// 1. Check Eligibility (7-day rule)
 app.get('/check/:crn', async (req, res) => {
     try {
         const user = await User.findOne({ crn: req.params.crn });
@@ -25,41 +32,70 @@ app.get('/check/:crn', async (req, res) => {
         
         const diffDays = Math.floor((new Date() - new Date(user.lastPrintDate)) / (1000 * 60 * 60 * 24));
         res.json({ found: true, user, eligible: diffDays >= 7 });
-    } catch (error) { res.status(500).json({ error: error.message }); }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// 2. Update Date to Today
+// 2. Update Date to Today with Activity Comment
 app.post('/update-date', async (req, res) => {
-    const { crn } = req.body;
-    const now = new Date();
-    await User.findOneAndUpdate({ crn }, { lastPrintDate: now });
-    await new History({ crn, printDate: now }).save();
-    await new Activity({ crn, action: "Request submitted" }).save();
-    res.json({ success: true });
+    try {
+        const { crn } = req.body;
+        const now = new Date();
+
+        // تاریخ اپ ڈیٹ کریں
+        await User.findOneAndUpdate({ crn }, { lastPrintDate: now });
+
+        // ایکٹیویٹی لاگ میں "Date updated" کمنٹ کے ساتھ محفوظ کریں
+        await new Activity({ 
+            crn: crn, 
+            action: "Date updated" 
+        }).save();
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: "Update failed" });
+    }
 });
 
 // 3. Register New CRN (via Popup)
 app.post('/add-new', async (req, res) => {
-    const { crn, lastPrintDate } = req.body;
-    const exists = await User.findOne({ crn });
-    if (exists) return res.status(400).json({ success: false, message: "CRN already registered!" });
+    try {
+        const { crn, lastPrintDate } = req.body;
+        const exists = await User.findOne({ crn });
+        
+        if (exists) return res.status(400).json({ success: false, message: "CRN already registered!" });
 
-    await new User({ crn, lastPrintDate: new Date(lastPrintDate) }).save();
-    await new History({ crn, printDate: new Date(lastPrintDate) }).save();
-    await new Activity({ crn, action: "CRN registered" }).save();
-    res.json({ success: true });
+        await new User({ crn, lastPrintDate: new Date(lastPrintDate) }).save();
+        
+        // رجسٹریشن کی ایکٹیویٹی محفوظ کریں
+        await new Activity({ 
+            crn: crn, 
+            action: "CRN registered" 
+        }).save();
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
-// 4. Get History for specific CRN
-app.get('/history/:crn', async (req, res) => {
-    const logs = await History.find({ crn: req.params.crn }).sort({ printDate: -1 });
-    res.json(logs);
-});
-
-// 5. Get Recent Activities for Sidebar
+// 4. Get Recent Activities (Last 4 records within 12-hour timeframe)
 app.get('/activities', async (req, res) => {
-    const list = await Activity.find().sort({ timestamp: -1 }).limit(5);
-    res.json(list);
+    try {
+
+        const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+
+        const list = await Activity.find({
+            timestamp: { $gte: twelveHoursAgo }
+        })
+        .sort({ timestamp: -1 }) // تازہ ترین ریکارڈز سب سے اوپر
+        .limit(4); // صرف آخری 4 ریکارڈز
+        
+        res.json(list);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch activities" });
+    }
 });
 
 const PORT = process.env.PORT || 3000;
