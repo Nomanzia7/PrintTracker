@@ -4,84 +4,63 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-
-// --- Middleware ---
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname)); 
+app.use(express.static(__dirname));
 
-// --- MongoDB Connection ---
+// MongoDB Connection
 const mongoURI = "mongodb+srv://admin:Print123@cluster0.djwrc3o.mongodb.net/PrintTracker?retryWrites=true&w=majority";
+mongoose.connect(mongoURI).then(() => console.log("✅ MongoDB Connected")).catch(err => console.log(err));
 
-mongoose.connect(mongoURI).then(() => {
-    console.log("✅ MongoDB Connected Successfully!");
-}).catch(err => console.log("❌ DB Error:", err));
+// Data Models
+const User = mongoose.model('User', { crn: String, lastPrintDate: Date });
+const Activity = mongoose.model('Activity', { crn: String, action: String, timestamp: { type: Date, default: Date.now } });
+const History = mongoose.model('History', { crn: String, printDate: Date });
 
-// --- Data Schema (Only CRN and Date) ---
-const User = mongoose.model('User', { 
-    crn: String, 
-    lastPrintDate: Date 
-});
-
-// --- Routes ---
-
-// 1. Home Page
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// 2. Add New Entry (No Name Field)
-app.post('/add-new', async (req, res) => {
-    try {
-        const { crn, lastPrintDate } = req.body;
-        
-        let existingUser = await User.findOne({ crn: crn });
-        if (existingUser) {
-            return res.status(400).json({ success: false, message: "ID already exists!" });
-        }
-
-        const newUser = new User({ 
-            crn, 
-            lastPrintDate: new Date(lastPrintDate) 
-        });
-        
-        await newUser.save();
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// 3. Search and Check Eligibility
+// 1. Check Eligibility
 app.get('/check/:crn', async (req, res) => {
     try {
         const user = await User.findOne({ crn: req.params.crn });
         if (!user) return res.json({ found: false });
         
-        const lastDate = new Date(user.lastPrintDate);
-        const today = new Date();
-        const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-        
-        res.json({ 
-            found: true, 
-            user, 
-            eligible: diffDays >= 7, 
-            daysPassed: diffDays 
-        });
-    } catch (error) {
-        res.status(500).json({ found: false });
-    }
+        const diffDays = Math.floor((new Date() - new Date(user.lastPrintDate)) / (1000 * 60 * 60 * 24));
+        res.json({ found: true, user, eligible: diffDays >= 7 });
+    } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// 4. Update to Current Date
+// 2. Update Date to Today
 app.post('/update-date', async (req, res) => {
-    try {
-        await User.findOneAndUpdate({ crn: req.body.crn }, { lastPrintDate: new Date() });
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ success: false });
-    }
+    const { crn } = req.body;
+    const now = new Date();
+    await User.findOneAndUpdate({ crn }, { lastPrintDate: now });
+    await new History({ crn, printDate: now }).save();
+    await new Activity({ crn, action: "Request submitted" }).save();
+    res.json({ success: true });
+});
+
+// 3. Register New CRN (via Popup)
+app.post('/add-new', async (req, res) => {
+    const { crn, lastPrintDate } = req.body;
+    const exists = await User.findOne({ crn });
+    if (exists) return res.status(400).json({ success: false, message: "CRN already registered!" });
+
+    await new User({ crn, lastPrintDate: new Date(lastPrintDate) }).save();
+    await new History({ crn, printDate: new Date(lastPrintDate) }).save();
+    await new Activity({ crn, action: "CRN registered" }).save();
+    res.json({ success: true });
+});
+
+// 4. Get History for specific CRN
+app.get('/history/:crn', async (req, res) => {
+    const logs = await History.find({ crn: req.params.crn }).sort({ printDate: -1 });
+    res.json(logs);
+});
+
+// 5. Get Recent Activities for Sidebar
+app.get('/activities', async (req, res) => {
+    const list = await Activity.find().sort({ timestamp: -1 }).limit(5);
+    res.json(list);
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server: http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
