@@ -8,30 +8,21 @@
     <style>
         :root { --bg: #f8fafc; --card: #ffffff; --primary: #0f172a; --text-muted: #64748b; --border: #e2e8f0; --success: #059669; --error: #dc2626; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 0; color: #1e293b; }
-        
-        /* Header */
         .top-header { background: white; border-bottom: 1px solid var(--border); padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         .logo-section h1 { margin: 0; font-size: 1.3rem; font-weight: 700; color: var(--primary); }
         .logo-section p { margin: 2px 0 0; font-size: 0.85rem; color: var(--text-muted); }
-
         .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
         .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; }
         .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-        
-        .btn-black { background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
-        .btn-outline { background: white; border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .btn-black { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
         .input-box { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; box-sizing: border-box; outline: none; }
-        
         .status-badge { padding: 4px 10px; border-radius: 15px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
         .not-eligible { background: #fee2e2; color: var(--error); }
         .eligible { background: #dcfce7; color: var(--success); }
-
-        /* Modal Popup */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 30px; border-radius: 16px; width: 420px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        
+        .modal-content { background: white; padding: 30px; border-radius: 16px; width: 400px; }
         .activity-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
-        .error-box { color: var(--error); background: #fff1f2; padding: 12px; border-radius: 8px; margin-top: 15px; display: none; font-weight: 500; font-size: 0.85rem; }
+        .error-box { color: var(--error); background: #fff1f2; padding: 12px; border-radius: 8px; margin-top: 15px; display: none; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -39,7 +30,7 @@
 <header class="top-header">
     <div class="logo-section">
         <h1>Print Request Tracker</h1>
-        <p>Check weekly eligibility and submit print requests</p>
+        <p>Check weekly eligibility and submit requests</p>
     </div>
     <button class="btn-black" onclick="openModal()">Register New CRN</button>
 </header>
@@ -49,9 +40,9 @@
         <div class="left-col">
             <div class="card">
                 <h3>Verify eligibility</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">Enter a CRN to check status.</p>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">Enter CRN and press Enter or click Check status.</p>
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="searchCrn" class="input-box" placeholder="e.g. 102938">
+                    <input type="text" id="searchCrn" class="input-box" placeholder="e.g. 12345" onkeypress="if(event.key === 'Enter') searchRecord()">
                     <button class="btn-black" onclick="searchRecord()">Check status</button>
                 </div>
                 <div id="statusError" class="error-box"></div>
@@ -59,29 +50,18 @@
 
             <div id="resultSection" style="display: none;">
                 <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <div>
-                            <span id="statusTag" class="status-badge"></span>
-                            <span style="margin-left: 10px; font-weight: 600;">CRN: <span id="displayCrn"></span></span>
-                            <h2 id="statusTitle" style="margin: 15px 0 5px 0;"></h2>
-                            <p id="statusDesc" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;"></p>
-                        </div>
-                        <button class="btn-outline" onclick="viewHistory()">View history</button>
-                    </div>
+                    <span id="statusTag" class="status-badge"></span>
+                    <span style="margin-left: 10px; font-weight: 600;">CRN: <span id="displayCrn"></span></span>
+                    <h2 id="statusTitle" style="margin: 15px 0 5px 0;"></h2>
+                    <p id="statusDesc" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;"></p>
                     <div id="actionArea"></div>
                 </div>
             </div>
         </div>
 
         <div class="right-col">
-            <div class="card">
-                <h3>Weekly rule</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.6;">Each CRN can submit <b>one</b> request per week. Eligibility resets after 7 days.</p>
-            </div>
-            <div class="card">
-                <h3>Recent activity</h3>
-                <div id="activityList" style="font-size: 0.85rem;">Loading...</div>
-            </div>
+            <div class="card"><h3>Weekly rule</h3><p style="font-size:0.85rem; color:var(--text-muted);">One request per 7 days.</p></div>
+            <div class="card"><h3>Recent activity</h3><div id="activityList" style="font-size:0.85rem;">Loading...</div></div>
         </div>
     </div>
 </div>
@@ -92,25 +72,31 @@
             <h2 style="margin:0;">Register New CRN</h2>
             <button onclick="closeModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
         </div>
-        <input type="text" id="newCrn" class="input-box" placeholder="Enter CRN Number" style="margin-bottom:15px;">
-        <input type="date" id="newDate" class="input-box" style="margin-bottom:20px;">
+        <input type="text" id="newCrn" class="input-box" placeholder="CRN Number" style="margin-bottom:15px;" onkeypress="if(event.key === 'Enter') saveNewEntry()">
+        <input type="date" id="newDate" class="input-box" style="margin-bottom:20px;" onkeypress="if(event.key === 'Enter') saveNewEntry()">
         <button class="btn-black" style="width: 100%;" onclick="saveNewEntry()">Save Record</button>
     </div>
 </div>
 
 <script>
     function openModal() { document.getElementById('regModal').style.display = 'flex'; }
-    function closeModal() { document.getElementById('regModal').style.display = 'none'; }
+    
+    // Clear fields and close modal
+    function closeModal() { 
+        document.getElementById('regModal').style.display = 'none';
+        document.getElementById('newCrn').value = '';
+        document.getElementById('newDate').value = '';
+    }
 
     async function searchRecord() {
         const crn = document.getElementById('searchCrn').value.trim();
-        const errorBox = document.getElementById('statusError');
-        const resSection = document.getElementById('resultSection');
+        const err = document.getElementById('statusError');
+        const resSec = document.getElementById('resultSection');
 
         if(!crn) {
-            errorBox.innerText = "⚠️ Please enter a CRN to check status.";
-            errorBox.style.display = 'block';
-            resSection.style.display = 'none';
+            err.innerText = "⚠️ Please enter a CRN.";
+            err.style.display = 'block';
+            resSec.style.display = 'none';
             return;
         }
 
@@ -118,34 +104,34 @@
         const data = await res.json();
 
         if(!data.found) {
-            errorBox.innerText = "❌ CRN doesn't exist. Please register as a new entry.";
-            errorBox.style.display = 'block';
-            resSection.style.display = 'none';
+            err.innerText = "❌ CRN not found. Please register first.";
+            err.style.display = 'block';
+            resSec.style.display = 'none';
             return;
         }
 
-        errorBox.style.display = 'none';
-        resSection.style.display = 'block';
+        err.style.display = 'none';
+        resSec.style.display = 'block';
         document.getElementById('displayCrn').innerText = data.user.crn;
         const tag = document.getElementById('statusTag');
         
         if(data.eligible) {
             tag.innerText = "Eligible"; tag.className = "status-badge eligible";
-            document.getElementById('statusTitle').innerText = "Ready for a new print.";
-            document.getElementById('statusDesc').innerText = "You have met the 7-day waiting period requirement.";
-            document.getElementById('actionArea').innerHTML = `<button class="btn-black" onclick="updateDate('${crn}')" style="width:100%; background:#059669;">Submit Request (Set to Today)</button>`;
+            document.getElementById('statusTitle').innerText = "Eligible for print.";
+            document.getElementById('statusDesc').innerText = "You can update the date to today.";
+            document.getElementById('actionArea').innerHTML = `<button class="btn-black" onclick="updateDate('${crn}')" style="width:100%; background:#059669;">Update Date to Today</button>`;
         } else {
             tag.innerText = "Not Eligible"; tag.className = "status-badge not-eligible";
-            document.getElementById('statusTitle').innerText = "Weekly limit reached.";
-            const nextDate = new Date(new Date(data.user.lastPrintDate).getTime() + 7 * 24 * 60 * 60 * 1000);
-            document.getElementById('statusDesc').innerText = `Next eligible on: ${nextDate.toDateString()}`;
-            document.getElementById('actionArea').innerHTML = `<div style="background:#fff1f2; color:#be123c; padding:15px; border-radius:8px; border-left:4px solid #be123c; font-size:0.85rem; font-weight:600;">Action blocked: Weekly limit reached.</div>`;
+            document.getElementById('statusTitle').innerText = "Limit reached.";
+            const next = new Date(new Date(data.user.lastPrintDate).getTime() + 7 * 24 * 60 * 60 * 1000);
+            document.getElementById('statusDesc').innerText = `Next eligibility: ${next.toDateString()}`;
+            document.getElementById('actionArea').innerHTML = `<div style="background:#fff1f2; color:#be123c; padding:15px; border-radius:8px; font-weight:600; font-size:0.85rem;">Action blocked: 7-day rule.</div>`;
         }
     }
 
     async function updateDate(crn) {
         await fetch('/update-date', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ crn }) });
-        alert("✅ Success: Date updated to today.");
+        alert("✅ Success: Updated!");
         searchRecord();
         loadActivities();
     }
@@ -153,9 +139,21 @@
     async function saveNewEntry() {
         const crn = document.getElementById('newCrn').value;
         const lastPrintDate = document.getElementById('newDate').value;
-        const res = await fetch('/add-new', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ crn, lastPrintDate }) });
-        if(res.ok) { alert("Registered!"); closeModal(); loadActivities(); }
-        else { alert("Error: Already exists"); }
+        if(!crn || !lastPrintDate) return alert("Fill all fields");
+
+        const res = await fetch('/add-new', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ crn, lastPrintDate }) 
+        });
+        
+        if(res.ok) {
+            alert("✅ Registered!");
+            closeModal(); // This will clear fields and hide popup
+            loadActivities();
+        } else {
+            alert("Error: CRN already exists.");
+        }
     }
 
     async function loadActivities() {
@@ -163,8 +161,8 @@
         const data = await res.json();
         document.getElementById('activityList').innerHTML = data.map(a => `
             <div class="activity-item">
-                <div><div style="font-weight:600;">CRN-${a.crn}</div><small style="color:gray;">${a.action}</small></div>
-                <small style="color:gray;">${new Date(a.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</small>
+                <div><b>CRN-${a.crn}</b><br><small>${a.action}</small></div>
+                <small>${new Date(a.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</small>
             </div>
         `).join('');
     }
