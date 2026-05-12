@@ -124,7 +124,7 @@
         } else {
             tag.innerText = "Not Eligible"; tag.className = "status-badge not-eligible";
             document.getElementById('statusTitle').innerText = "Limit reached.";
-            const next = new Date(new Date(data.user.lastPrintDate).getTime() + 7 * 24 * 60 * 60 * 1000);
+            const next = new Date(new Date(data.user.lastPrintDate).getTime() + 6 * 24 * 60 * 60 * 1000);
             document.getElementById('statusDesc').innerText = `Next eligibility: ${next.toDateString()}`;
             document.getElementById('actionArea').innerHTML = `<div style="background:#fff1f2; color:#be123c; padding:15px; border-radius:8px; font-weight:600; font-size:0.85rem;">Action blocked: 7-day rule.</div>`;
         }
