@@ -42,7 +42,7 @@ app.get('/check/:crn', async (req, res) => {
         const diffDays = Math.floor((todayDateOnly - lastPrintDateOnly) / msPerDay);
 
         // If 7 or more calendar days have passed, they are eligible
-        res.json({ found: true, user, eligible: diffDays >= 7 });
+        res.json({ found: true, user, eligible: diffDays >= 6 });
     }
 });
 
