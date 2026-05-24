@@ -127,7 +127,7 @@
     
     // Clean, timezone-safe calculation for exactly 7 days later
     const lastPrint = new Date(data.user.lastPrintDate);
-    lastPrint.setDate(lastPrint.getDate() + 7);
+    lastPrint.setDate(lastPrint.getDate() + 6);
     
     const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
     const nextDateString = lastPrint.toLocaleDateString('en-US', options).replace(/,/g, '');
