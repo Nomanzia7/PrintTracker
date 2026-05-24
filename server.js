@@ -24,24 +24,25 @@ const Activity = mongoose.model('Activity', {
     timestamp: { type: Date, default: Date.now } 
 });
 
-// 1. Check Eligibility (7-day rule calculated by absolute calendar dates)
+// 1. Check Eligibility (Strict 7-day calendar rule ignoring time zones)
 app.get('/check/:crn', async (req, res) => {
     try {
         const user = await User.findOne({ crn: req.params.crn });
         if (!user) return res.json({ found: false });
         
-        // Convert both timestamps to absolute midnight UTC dates
-        const now = new Date();
-        const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+        // 1. Get today's date in Australian Eastern Time (AEST) as YYYY-MM-DD
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+        const todayDate = new Date(todayStr);
 
-        const lastPrint = new Date(user.lastPrintDate);
-        const lastPrintUTC = Date.UTC(lastPrint.getFullYear(), lastPrint.getMonth(), lastPrint.getDate());
+        // 2. Get the last print date in Australian Eastern Time (AEST) as YYYY-MM-DD
+        const lastPrintStr = new Date(user.lastPrintDate).toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+        const lastPrintDate = new Date(lastPrintStr);
 
-        // Calculate exact calendar days passed
+        // 3. Calculate the exact calendar day difference
         const msPerDay = 1000 * 60 * 60 * 24;
-        const diffDays = Math.floor((todayUTC - lastPrintUTC) / msPerDay);
+        const diffDays = Math.floor((todayDate - lastPrintDate) / msPerDay);
 
-        // Eligible if 7 full calendar days have crossed
+        // If 7 or more calendar days have passed, they are eligible immediately at midnight
         res.json({ found: true, user, eligible: diffDays >= 7 });
     } catch (error) {
         res.status(500).json({ error: error.message });
