@@ -122,12 +122,19 @@
             document.getElementById('statusDesc').innerText = "You can update the date to today.";
             document.getElementById('actionArea').innerHTML = `<button class="btn-black" onclick="updateDate('${crn}')" style="width:100%; background:#059669;">Update Date to Today</button>`;
         } else {
-            tag.innerText = "Not Eligible"; tag.className = "status-badge not-eligible";
-            document.getElementById('statusTitle').innerText = "Limit reached.";
-            const next = new Date(new Date(data.user.lastPrintDate).getTime() + 6 * 24 * 60 * 60 * 1000);
-            document.getElementById('statusDesc').innerText = `Next eligibility: ${next.toDateString()}`;
-            document.getElementById('actionArea').innerHTML = `<div style="background:#fff1f2; color:#be123c; padding:15px; border-radius:8px; font-weight:600; font-size:0.85rem;">Action blocked: 7-day rule.</div>`;
-        }
+    tag.innerText = "Not Eligible"; tag.className = "status-badge not-eligible";
+    document.getElementById('statusTitle').innerText = "Limit reached.";
+    
+    // Clean, timezone-safe calculation for exactly 7 days later
+    const lastPrint = new Date(data.user.lastPrintDate);
+    lastPrint.setDate(lastPrint.getDate() + 7);
+    
+    const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+    const nextDateString = lastPrint.toLocaleDateString('en-US', options).replace(/,/g, '');
+
+    document.getElementById('statusDesc').innerText = `Next eligibility: ${nextDateString}`;
+    document.getElementById('actionArea').innerHTML = `<div style="background:#fff1f2; color:#be123c; padding:15px; border-radius:8px; font-weight:600; font-size:0.85rem;">Action blocked: 7-day rule.</div>`;
+}
     }
 
     async function updateDate(crn) {
