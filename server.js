@@ -24,16 +24,25 @@ const Activity = mongoose.model('Activity', {
     timestamp: { type: Date, default: Date.now } 
 });
 
-// 1. Check Eligibility (7-day rule)
 app.get('/check/:crn', async (req, res) => {
     try {
         const user = await User.findOne({ crn: req.params.crn });
         if (!user) return res.json({ found: false });
         
-        const diffDays = Math.floor((new Date() - new Date(user.lastPrintDate)) / (1000 * 60 * 60 * 24));
+        // Normalize today's date to midnight local time
+        const now = new Date();
+        const todayDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        // Normalize the stored last print date to midnight local time
+        const lastPrint = new Date(user.lastPrintDate);
+        const lastPrintDateOnly = new Date(lastPrint.getFullYear(), lastPrint.getMonth(), lastPrint.getDate());
+
+        // Calculate the difference in calendar days
+        const msPerDay = 1000 * 60 * 60 * 24;
+        const diffDays = Math.floor((todayDateOnly - lastPrintDateOnly) / msPerDay);
+
+        // If 7 or more calendar days have passed, they are eligible
         res.json({ found: true, user, eligible: diffDays >= 7 });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
     }
 });
 
